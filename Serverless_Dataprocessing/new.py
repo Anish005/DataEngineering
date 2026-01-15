@@ -1,11 +1,3 @@
-## Using Apache Beam to write an ETL Pipeline
-
--- building a batch pipeline in Apache Beam which takes raw from GCS to BigQuery.<br>
--- Using dataflow to run the Apache Beam pipeline.<br>
--- Parameterizing the execution of the pipeline<br>
-
-### Setting up all the imports
-```python
 import argparse
 import time
 import logging
@@ -15,43 +7,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners import DataflowRunner, DirectRunner
-```
 
-### Creating the pipeline
-
-Pipeline - the top level Beam object
-A pipeline holds a DAG of data transforms. Conceptually the nodes of the DAG are transforms (PTransform objects) and the edges are values (mostly PCollection objects). The transforms take as inputs one or more PValues and output one or more PValue s.
-The pipeline offers functionality to traverse the graph. The actual operation to be executed for each node visited is specified through a runner object.
-
-a Pipeline object is created using a PipelineOptions object and the final line of the method runs the pipeline:
-
-```python
-options = PipelineOptions()
-# Set options
-p = beam.Pipeline(options=options)
-# Do stuff
-p.run()
-    
-```
-## Runner in Apache Beam
-DEFAULT_RUNNER= 'DirectRunner'<br>
-The Direct Runner executes pipelines on your machine and is designed to validate that pipelines adhere to the Apache Beam model as closely as possible. Instead of focusing on efficient pipeline execution, the Direct Runner performs additional checks to ensure that users do not rely on semantics that are not guaranteed by the model. Some of these checks include:
-
-enforcing immutability of elements<br>
-enforcing encodability of elements<br>
-elements are processed in an arbitrary order at all points<br>
-serialization of user functions (DoFn, CombineFn, etc.)<br>
-
-KNOWN_RUNNER_NAMES= ['DataflowRunner', 'BundleBasedDirectRunner', 'DirectRunner', 'SwitchingDirectRunner', 'InteractiveRunner', 'FlinkRunner', 'PortableRunner', 'SparkRunner', 'TestDirectRunner', 'TestDataflowRunner']
-
-### Defining the run function
-Inside the run function we are setting up the Beampipeline Options 
-(here we are returning the view as Google Cloud Options)<br>
-Other options are ['StandardOptions','S30Options','TestOptions','SetupOptions','ProfilingOptions','DebugOptions','WorkerOptions','HadoopFileSystemOptions','DirectOptions']
-
-
-
-```python
 # ### main
 
 def run():
@@ -73,14 +29,11 @@ def run():
     options.view_as(GoogleCloudOptions).temp_location = opts.tempLocation
     options.view_as(GoogleCloudOptions).job_name = '{0}{1}'.format('my-pipeline-',time.time_ns())
     options.view_as(StandardOptions).runner = opts.runner
-```
 
-```python
     # Static input and output
     input = 'gs://{0}/events.json'.format(opts.project)
     output = '{0}:logs.logs'.format(opts.project)
-```
-```python
+
     # Table schema for BigQuery
     table_schema = {
         "fields": [
@@ -122,10 +75,8 @@ def run():
             }
         ]
     }
-```
-```python
-    # Create the pipeline
 
+    # Create the pipeline
     p = beam.Pipeline(options=options)
 
     '''
@@ -155,4 +106,3 @@ def run():
 
 if __name__ == '__main__':
   run()
-```

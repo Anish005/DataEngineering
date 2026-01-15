@@ -1,0 +1,196 @@
+This lab focuses on how to create new reporting tables using SQL JOINS and UNIONs.
+
+Scenario: Your marketing team provided you and your data science team all of the product reviews for your ecommerce website. You are partnering with them to create a data warehouse in BigQuery which joins together data from three sources:
+
+Website ecommerce data
+Product inventory stock levels and lead times
+Product review sentiment analysis
+
+======================================================================
+
+
+
+Create a new table in your ecommerce dataset with the below requirements:
+Title it sales_by_sku_20170801
+Source the data from data-to-insights.ecommerce.all_sessions_raw
+Include only distinct results
+Return productSKU
+Return the total quantity ordered (productQuantity). Hint: Use a SUM() with a IFNULL condition
+Filter for only sales on 20170801
+ORDER BY the SKUs with the most orders first
+
+
+
+# pull what sold on 08/01/2017
+CREATE OR REPLACE TABLE ecommerce.sales_by_sku_20170801 AS
+SELECT
+  productSKU,
+  SUM(IFNULL(productQuantity,0)) AS total_ordered
+FROM
+  `data-to-insights.ecommerce.all_sessions_raw`
+WHERE date = '20170801'
+GROUP BY productSKU
+ORDER BY total_ordered DESC #462 skus sold
+
+=============================================================================
+# calculate ratio and filter
+SELECT DISTINCT
+  website.productSKU,
+  website.total_ordered,
+  inventory.name,
+  inventory.stockLevel,
+  inventory.restockingLeadTime,
+  inventory.sentimentScore,
+  inventory.sentimentMagnitude,
+
+  SAFE_DIVIDE(website.total_ordered, inventory.stockLevel) AS ratio
+FROM
+  ecommerce.sales_by_sku_20170801 AS website
+  LEFT JOIN `data-to-insights.ecommerce.products` AS inventory
+  ON website.productSKU = inventory.SKU
+
+# gone through more than 50% of inventory for the month
+WHERE SAFE_DIVIDE(website.total_ordered,inventory.stockLevel) >= .50
+
+ORDER BY total_ordered DESC
+ =======================================================================
+ What is a pitfall of having many daily sales tables? You will have to write many UNION statements chained together.
+
+A better solution is to use the table wildcard filter and _TABLE_SUFFIX filter.
+
+Write a query that uses the (*) table wildcard to select all records from ecommerce.sales_by_sku_ for the year 2017.
+=============================================================================
+A partitioned table is a table that is divided into segments, called partitions, that make it easier to manage and query your data. By dividing a large table into smaller partitions, you can improve query performance, and control costs by reducing the number of bytes read by a query.
+
+Now create a new table and bind a date or timestamp column as a partition. Before we do that, let's explore the data in the non-partitioned table first.
+
+=============================================================================================
+Common use-cases for date-partitioned tables
+Scanning through the entire dataset every time to compare rows against a WHERE condition is wasteful.
+ This is especially true if you only really care about records for a specific period of time like:
+
+All transactions for the last year
+All visitor interactions within the last 7 days
+All products sold in the last month
+Instead of scanning the entire dataset and filtering on a date field like we did in the earlier queries, 
+Now set up a date-partitioned table. This allows you to completely ignore scanning records in certain partitions if 
+they are irrelevant to our query.
+
+#standardSQL
+ CREATE OR REPLACE TABLE ecommerce.partition_by_day
+ PARTITION BY date_formatted
+ OPTIONS(
+   description="a table partitioned by date"
+ ) AS
+
+ SELECT DISTINCT
+ PARSE_DATE("%Y%m%d", date) AS date_formatted,
+ fullvisitorId
+ FROM `data-to-insights.ecommerce.all_sessions_raw`
+
+In this query, note the new option - PARTITION BY a field. The two options available to partition are DATE and TIMESTAMP. The 
+PARSE_DATE function is used on the date field (stored as a string) to get it into the proper DATE type for partitioning.
+
+Your goal is to create a table that:
+
+Queries on weather data from 2018 onward
+Filters to only include days that have had some precipitation (rain, snow, etc.)
+Only stores each partition of data for 90 days from that partition's date (rolling window)
+
+#standardSQL
+ SELECT
+   DATE(CAST(year AS INT64), CAST(mo AS INT64), CAST(da AS INT64)) AS date,
+   (SELECT ANY_VALUE(name) FROM `bigquery-public-data.noaa_gsod.stations` AS stations
+    WHERE stations.usaf = stn) AS station_name,  -- Stations may have multiple names
+   prcp
+ FROM `bigquery-public-data.noaa_gsod.gsod*` AS weather
+ WHERE prcp < 99.9  -- Filter unknown values
+   AND prcp > 0      -- Filter stations/days with no precipitation
+   AND _TABLE_SUFFIX >= '2018'
+ ORDER BY date DESC -- Where has it rained/snowed recently
+ LIMIT 10
+
+Modify the previous query to create a table with the below specifications:
+
+Table name: ecommerce.days_with_rain
+Use the date field as your PARTITION BY
+For OPTIONS, specify partition_expiration_days = 60
+Add the table description = "weather stations with precipitation, partitioned by day"
+
+#standardSQL
+ CREATE OR REPLACE TABLE ecommerce.days_with_rain
+ PARTITION BY date
+ OPTIONS (
+   partition_expiration_days=60,
+   description="weather stations with precipitation, partitioned by day"
+ ) AS
+
+
+ SELECT
+   DATE(CAST(year AS INT64), CAST(mo AS INT64), CAST(da AS INT64)) AS date,
+   (SELECT ANY_VALUE(name) FROM `bigquery-public-data.noaa_gsod.stations` AS stations
+    WHERE stations.usaf = stn) AS station_name,  -- Stations may have multiple names
+   prcp
+ FROM `bigquery-public-data.noaa_gsod.gsod*` AS weather
+ WHERE prcp < 99.9  -- Filter unknown values
+   AND prcp > 0      -- Filter
+   AND _TABLE_SUFFIX >= '2018'
+
+Confirm data partition expiration is working
+To confirm you are only storing data from 60 days in the past up until today, run the DATE_DIFF query to get the age of your partitions, which are set to expire after 60 days.
+=======================================================================================================================
+
+#standardSQL
+# find the count of unique SKUs
+SELECT
+DISTINCT
+productSKU
+FROM `data-to-insights.ecommerce.all_sessions_raw`
+
+Clear the previous query and run the below query to determine if some product names have more than one SKU. The use of the 
+STRING_AGG() function to aggregate all the product SKUs that are associated with one product name into comma separated values.
+
+SELECT
+  v2ProductName,
+  COUNT(DISTINCT productSKU) AS SKU_count,
+  STRING_AGG(DISTINCT productSKU LIMIT 5) AS SKU
+FROM `data-to-insights.ecommerce.all_sessions_raw`
+  WHERE productSKU IS NOT NULL
+  GROUP BY v2ProductName
+  HAVING SKU_count > 1
+  ORDER BY SKU_count DESC
+
+So you have seen that 1 Product can have 12 SKUs. What about 1 SKU? Should it be allowed to belong to more than 1 product?
+
+SELECT
+  productSKU,
+  COUNT(DISTINCT v2ProductName) AS product_count,
+  STRING_AGG(DISTINCT v2ProductName LIMIT 5) AS product_name
+FROM `data-to-insights.ecommerce.all_sessions_raw`
+  WHERE v2ProductName IS NOT NULL
+  GROUP BY productSKU
+  HAVING product_count > 1
+  ORDER BY product_count DESC
+  =========================================================================
+Join pitfall solution: use distinct SKUs before joining
+
+Gather all the possible names into an array:
+
+SELECT
+  productSKU,
+  ARRAY_AGG(DISTINCT v2ProductName) AS push_all_names_into_array
+FROM `data-to-insights.ecommerce.all_sessions_raw`
+WHERE productSKU = 'GGOEGAAX0098'
+GROUP BY productSKU
+
+note : Join pitfall solution: selecting the correct join type and filtering for NULL
+The default JOIN type is an INNER JOIN which returns records only if there is a SKU match on both the left and the right tables that are joined.
+
+Rewrite the previous query to use a different join type to include all records from the website table, regardless of whether there is a 
+match on a product inventory SKU record. Join type options: INNER JOIN, LEFT JOIN, RIGHT JOIN, FULL JOIN, CROSS JOIN.
+
+Note: You typically will not see RIGHT JOINs in production queries.
+ You would simply just do a LEFT JOIN and switch the ordering of the tables.
+
+ Note: For a CROSS JOIN you will notice there is no join condition (e.g. ON or USING). 
+ The field is simply multiplied against the first dataset or .05 discount across all items.
