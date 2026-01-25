@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
+'''
+to run the 
+Docstring for docker&postgres.pipeline.ingest_data
 
+'''
 import pandas as pd
 from sqlalchemy import create_engine
 from tqdm.auto import tqdm
@@ -36,21 +40,17 @@ parse_dates = [
 @click.option('--pg-port', default=5432, type=int, help='PostgreSQL port')
 @click.option('--pg-db', default='ny_taxi', help='PostgreSQL database name')
 @click.option('--target-table', default='yellow_taxi_data', help='Target table name')
+@click.option('--year', default=2021, type=int, help='Year for taxi data')
+@click.option('--month', default=1, type=int, help='Month for taxi data')
+@click.option('--chunksize', default=100000, type=int, help='Chunk size for reading CSV')
 
-def run(pg_user, pg_pass, pg_host, pg_port, pg_db, target_table):
-    pg_user = 'root'
-    pg_password = 'root'
-    pg_host = 'localhost'
-    pg_db = 'ny_taxi'
-    pg_port = 5434
-    year = 2021
-    month  = 1
-    chunksize = 100000
 
-    target_table = 'yellow_taxi_data'
+def run(pg_user, pg_pass, pg_host, pg_port, pg_db, target_table, year, month , chunksize):
+    
+    # target_table = 'yellow_taxi_data'
     prefix = 'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/'
     url = f'{prefix}/yellow_tripdata_{year}-{month:02d}.csv.gz'
-    engine = create_engine(f'postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_db}')
+    engine = create_engine(f'postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}')
 
     ########################
     df_iter = pd.read_csv(

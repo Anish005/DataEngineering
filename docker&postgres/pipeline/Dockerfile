@@ -1,14 +1,20 @@
-# base Docker image that we will build on
 FROM python:3.13.8-slim
 
-# set up our image by installing prerequisites; pandas in this case
-RUN pip install pandas pyarrow
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
-# set up the working directory inside the container
+# Install Python packages
+RUN pip install --upgrade pip && \
+    pip install pandas pyarrow sqlalchemy psycopg2-binary click tqdm
+
+# Set up the working directory inside the container
 WORKDIR /app
-# copy the script to the container. 1st name is source file, 2nd is destination
-COPY pipeline.py pipeline.py
 
-# define what to do first when the container runs
-# in this example, we will just run the script
-ENTRYPOINT ["python", "pipeline.py"]
+# Copy the script to the container
+COPY ingest_data.py .
+
+# Define what to do first when the container runs
+ENTRYPOINT ["python", "ingest_data.py"]
