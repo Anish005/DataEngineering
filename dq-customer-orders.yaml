@@ -1,0 +1,19 @@
+metadata:
+  name: dq-customer-orders
+  description: Data quality rules for customer_orders.ordered_items
+
+entity_uri: bigquery://qwiklabs-gcp-02-fc7b3d7afb9e/customer_orders/ordered_items
+
+rules:
+  - rule_type: NOT_NULL
+    dimension: completeness
+    column: user_id
+    threshold: 1.0
+
+  - rule_type: NOT_NULL
+    dimension: completeness
+    column: order_id
+    threshold: 1.0
+
+result:
+  bigquery_table: qwiklabs-gcp-02-fc7b3d7afb9e.orders_dq_dataset.results
