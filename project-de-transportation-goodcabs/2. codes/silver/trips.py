@@ -53,7 +53,9 @@ dp.create_auto_cdc_flow(
     target="transportation.silver.trips",
     source="trips_silver_staging",
     keys=["id"],
-    sequence_by=F.col("silver_processed_timestamp"),
-    stored_as_scd_type=1,
+    sequence_by=F.col("silver_processed_timestamp"),# sequencing the based on the silver table timestamp
+    # it would keep the history of the data and create a new record with the new data and old data would be there with the old timestamp, you can also use scd type 2 which would create a new record 
+    # with the new data and old data would be there with the old timestamp and a new column would be created to indicate the current record
+    stored_as_scd_type=1, 
     except_column_list=[],
 )
