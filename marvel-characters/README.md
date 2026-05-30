@@ -54,3 +54,11 @@ This project serves as a complete end-to-end MLOps pipeline designed to compleme
 ### 5. Lakehouse Monitoring
 *   **Theoretical Concept:** Maintaining model performance in production by implementing data and model monitoring within the Databricks Lakehouse architecture [2].
 *   **Project Implementation:** The lifecycle concludes with the `05.refresh_monitor.py` script, which is responsible for refreshing monitoring tables and dashboards to continuously track the health of the served Marvel model [3].
+## Deep Dive: DAB, Deployment Strategies, and Model Serving
+
+This section outlines the specific steps and concepts detailed in the course for bringing models into production and automating infrastructure:
+
+*   **Model Serving Architectures:** Before deployment, the course covers the theoretical foundation of various model serving architectures to determine the best way to expose the machine learning model [1, 5].
+*   **Deploying a Model Serving Endpoint:** The practical step of making the model available for predictions is handled by the `03.deploy_model.py` script. This script takes the trained and registered Marvel model and deploys it directly to a scalable Databricks model serving endpoint [1, 3, 5]. 
+*   **Databricks Asset Bundles (DAB):** To manage deployment infrastructure efficiently, the workflow incorporates Databricks Asset Bundles [1, 5]. In the repository, this infrastructure-as-code setup is defined and managed using the `databricks.yml` configuration file [6].
+*   **CI/CD and Deployment Strategies:** Moving from manual setup to full automation involves establishing robust deployment strategies and continuous integration/continuous deployment (CI/CD) pipelines [1, 4]. This is practically implemented using GitHub Actions, with configuration files stored in the `.github/workflows` directory [6]. Additionally, the `04.post_commit_status.py` script is used to automate the reporting of integration test statuses back to GitHub [3].
