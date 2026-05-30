@@ -21,13 +21,14 @@ def is_databricks():
 
 if not is_databricks():
     load_dotenv()
-    profile = os.environ["PROFILE"]
+    profile = os.environ.get("PROFILE")
     mlflow.set_tracking_uri(f"databricks://{profile}")
     mlflow.set_registry_uri(f"databricks-uc://{profile}")
 
 
-config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="dev")
+config = ProjectConfig.from_yaml(config_path="/Users/aniiiish/Documents/Projects/DataEngineering/marvel-characters/project_config_marvel.yml", env="dev")
 spark = SparkSession.builder.getOrCreate()
+
 tags = Tags(**{"git_sha": "abcd12345", "branch": "main"})
 
 # COMMAND ----------
@@ -93,3 +94,5 @@ print(v[0].__dict__)
 # not supported
 v = mlflow.search_model_versions(
     filter_string="tags.git_sha='abcd12345'")
+
+# COMMAND ----------
